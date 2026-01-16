@@ -78,10 +78,36 @@ export default function ManageMembers() {
 
     const handleCopyInvite = () => {
         const inviteUrl = `${window.location.origin}/groups/${groupId}/join`;
-        navigator.clipboard.writeText(inviteUrl);
-        setShowInviteCopied(true);
-        setTimeout(() => setShowInviteCopied(false), 3000);
+        navigator.clipboard.writeText(inviteUrl)
+            .then(() => {
+                setShowInviteCopied(true);
+                setTimeout(() => setShowInviteCopied(false), 3000);
+            })
+            .catch(err => console.error('Failed to copy:', err));
     };
+
+    // ... (rest of methods)
+
+    // ... handleAddManualMember ...
+    // ... handleRemoveMember ...
+
+    // Replace the return null with error UI
+    if (!group) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
+                <div className="text-center">
+                    <h2 className="text-xl font-bold text-gray-800">Group not found</h2>
+                    <p className="text-gray-500 mt-2">Could not load group details.</p>
+                    <button
+                        onClick={() => router.push('/dashboard')}
+                        className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                    >
+                        Back to Dashboard
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     const handleAddManualMember = async (e: React.FormEvent) => {
         e.preventDefault();

@@ -35,7 +35,8 @@ export default function JoinGroupPage() {
     const { user, loading: authLoading } = useAuth();
     const router = useRouter();
     const params = useParams();
-    const groupId = params.id as string;
+    // Fix: Handle potential array param
+    const groupId = Array.isArray(params.id) ? params.id[0] : params.id;
 
     const [groupName, setGroupName] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -75,7 +76,7 @@ export default function JoinGroupPage() {
                 .select('id')
                 .eq('group_id', groupId)
                 .eq('user_id', user!.id)
-                .maybeSingle(); // Use maybeSingle to avoid 406 if not found
+                .maybeSingle();
 
             if (member) {
                 setAlreadyMember(true);
@@ -179,11 +180,11 @@ export default function JoinGroupPage() {
                     <div className="space-y-4">
                         <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-left flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-gradient-to-r from-gray-200 to-gray-300 flex items-center justify-center font-bold text-gray-600">
-                                {user!.email![0].toUpperCase()}
+                                {user?.email?.[0]?.toUpperCase() || '?'}
                             </div>
                             <div>
                                 <p className="text-xs text-gray-400 font-semibold uppercase">Joining as</p>
-                                <p className="text-sm font-medium text-gray-900">{user!.email}</p>
+                                <p className="text-sm font-medium text-gray-900">{user?.email || 'Unknown User'}</p>
                             </div>
                         </div>
 

@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { canCreateGroup, getUserUsage, LimitCheck } from '@/actions/usage';
+import { UpgradeModal } from '@/components/UpgradeModal';
 
 export default function CreateGroup() {
   const { user } = useAuth();
@@ -11,43 +13,60 @@ export default function CreateGroup() {
   const [groupName, setGroupName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [limitInfo, setLimitInfo] = useState<LimitCheck | null>(null);
+  const [checkingLimit, setCheckingLimit] = useState(true);
+
+  // Check limit on mount
+  useEffect(() => {
+    const checkLimit = async () => {
+      const result = await canCreateGroup();
+      setLimitInfo(result);
+      setCheckingLimit(false);
+
+      // If at limit, show upgrade modal immediately
+      if (!result.allowed && result.upgradeRequired) {
+        setShowUpgradeModal(true);
+      }
+    };
+
+    if (user) {
+      checkLimit();
+    }
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
+    // Check limit again before submitting
+    const limitCheck = await canCreateGroup();
+    if (!limitCheck.allowed) {
+      setLimitInfo(limitCheck);
+      setShowUpgradeModal(true);
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
-      // Create the group
-      const { data: group, error: groupError } = await supabase
-        .from('groups')
-        .insert([
-          {
-            name: groupName,
-            created_by: user.id,
-          },
-        ])
-        .select()
-        .single();
+      // Use RPC to create group and add member atomically
+      const { data: group, error: rpcError } = await supabase.rpc(
+        'create_group_with_member',
+        {
+          group_name: groupName,
+          creator_id: user.id,
+        }
+      );
 
-      if (groupError) throw groupError;
-
-      // Add creator as a member
-      const { error: memberError } = await supabase
-        .from('group_members')
-        .insert([
-          {
-            group_id: group.id,
-            user_id: user.id,
-          },
-        ]);
-
-      if (memberError) throw memberError;
+      if (rpcError) throw rpcError;
 
       // Redirect to the group page
-      router.push(`/groups/${group.id}`);
+      // The RPC returns the group object (as JSON), so we can access ID directly
+      // Typescript might see it as any/unknown, so cast or access safely
+      const newGroup = group as any;
+      router.push(`/groups/${newGroup.id}`);
     } catch (err: any) {
       console.error('Error creating group:', err);
       setError(err.message || 'Failed to create group');
@@ -205,6 +224,19 @@ export default function CreateGroup() {
           animation: shake 0.5s ease-in-out;
         }
       `}</style>
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => {
+          setShowUpgradeModal(false);
+          router.push('/dashboard');
+        }}
+        reason={limitInfo?.reason}
+        currentUsage={limitInfo?.currentUsage}
+        limit={limitInfo?.limit}
+        limitType="groups"
+      />
     </div>
   );
 }

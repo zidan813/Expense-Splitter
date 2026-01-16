@@ -23,35 +23,35 @@ export default function EditGroup() {
     const [error, setError] = useState('');
 
     useEffect(() => {
+        const fetchGroup = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('groups')
+                    .select('*')
+                    .eq('id', groupId)
+                    .single();
+
+                if (error) throw error;
+
+                // Security check
+                if (data.created_by !== user?.id) { // safe user access
+                    router.push(`/groups/${groupId}`);
+                    return;
+                }
+
+                setGroupName(data.name);
+            } catch (err: any) {
+                console.error('Error fetching group:', err);
+                setError('Failed to load group details');
+            } finally {
+                setLoading(false);
+            }
+        };
+
         if (user && groupId) {
             fetchGroup();
         }
-    }, [user, groupId]);
-
-    const fetchGroup = async () => {
-        try {
-            const { data, error } = await supabase
-                .from('groups')
-                .select('*')
-                .eq('id', groupId)
-                .single();
-
-            if (error) throw error;
-
-            // Security check
-            if (data.created_by !== user!.id) {
-                router.push(`/groups/${groupId}`);
-                return;
-            }
-
-            setGroupName(data.name);
-        } catch (err: any) {
-            console.error('Error fetching group:', err);
-            setError('Failed to load group details');
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [user, groupId, router]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

@@ -204,6 +204,10 @@ export default function AddIncomePage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!validate()) return;
+        if (members.length === 0) {
+            setError('No members to split income with.');
+            return;
+        }
 
         setIsSubmitting(true);
         try {
@@ -211,10 +215,11 @@ export default function AddIncomePage() {
 
             // Determine Receiver logic
             let finalReceivedById = user?.id;
-            let finalDescription = formData.source.trim();
+            // Ensure safe description
+            let finalDescription = (formData.source || 'Income').trim();
             const splitAmt = (amountFloat * -1) / members.length; // Negative amount split
 
-            const receiverMember = members.find(m => m.email.toLowerCase() === formData.receivedBy.toLowerCase());
+            const receiverMember = members.find(m => m.email && formData.receivedBy && m.email.toLowerCase() === formData.receivedBy.toLowerCase());
 
             if (receiverMember) {
                 finalReceivedById = receiverMember.user_id;
@@ -222,32 +227,25 @@ export default function AddIncomePage() {
                 finalDescription = `${finalDescription} (Received by ${formData.receivedBy})`;
             }
 
-            // 1. Create Negative Expense (Income)
-            const { data: expense, error: expError } = await supabase
-                .from('expenses')
-                .insert({
-                    group_id: groupId,
-                    description: finalDescription,
-                    amount: amountFloat * -1, // NEGATIVE for Income
-                    paid_by: finalReceivedById
-                })
-                .select()
-                .single();
-
-            if (expError) throw expError;
-
-            // 2. Create Splits (also negative)
+            // Prepare splits
             const splits = members.map(m => ({
-                expense_id: expense.id,
                 user_id: m.user_id,
                 amount: splitAmt
             }));
 
-            const { error: splitError } = await supabase
-                .from('expense_splits')
-                .insert(splits);
+            // Use atomic RPC (negative amounts = Income)
+            const { error: rpcError } = await supabase.rpc(
+                'add_expense_with_splits',
+                {
+                    p_group_id: groupId,
+                    p_description: finalDescription,
+                    p_amount: amountFloat * -1,
+                    p_paid_by: finalReceivedById,
+                    p_splits: splits
+                }
+            );
 
-            if (splitError) throw splitError;
+            if (rpcError) throw rpcError;
 
             setSubmitSuccess(true);
             setTimeout(() => {
