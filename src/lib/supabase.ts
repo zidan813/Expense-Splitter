@@ -1,9 +1,27 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create a singleton instance that's only initialized when env vars are available
+let supabaseInstance: SupabaseClient | null = null;
+
+export const supabase = (() => {
+  if (supabaseInstance) return supabaseInstance;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    // During build time, return a dummy client that won't be used
+    // This prevents the build from failing
+    if (typeof window === 'undefined') {
+      console.warn('Supabase credentials not available during build');
+    }
+    // Still create the client with empty strings - it won't work but won't crash the build
+    return createClient('https://placeholder.supabase.co', 'placeholder-key');
+  }
+
+  supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
+  return supabaseInstance;
+})();
 
 // Database Types (we'll expand this as we build)
 export type User = {
