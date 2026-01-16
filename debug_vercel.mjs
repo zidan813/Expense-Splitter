@@ -1,7 +1,13 @@
 import { Vercel } from '@vercel/sdk';
 
+if (!process.env.VERCEL_TOKEN) {
+    console.error('Error: VERCEL_TOKEN environment variable is missing.');
+    console.error('Usage: $env:VERCEL_TOKEN="your_token"; node debug_vercel.mjs');
+    process.exit(1);
+}
+
 const vercel = new Vercel({
-    bearerToken: 'xo2UfUWkJeR3jzpVzWHA1ou9', // Using the token you provided
+    bearerToken: process.env.VERCEL_TOKEN,
 });
 
 async function main() {

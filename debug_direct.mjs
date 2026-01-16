@@ -1,6 +1,10 @@
 import fs from 'fs';
 
-const TOKEN = 'Uk78c7xrDtH64XGKZaiDcwpb';
+if (!process.env.VERCEL_TOKEN) {
+    console.error('Error: VERCEL_TOKEN environment variable is missing.');
+    process.exit(1);
+}
+const TOKEN = process.env.VERCEL_TOKEN;
 const API_BASE = 'https://api.vercel.com';
 
 async function main() {
