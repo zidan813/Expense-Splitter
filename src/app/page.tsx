@@ -1,4 +1,6 @@
 'use client';
+// Force rebuild timestamp: 2026-01-17
+
 
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
